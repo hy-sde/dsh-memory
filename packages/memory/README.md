@@ -64,14 +64,15 @@ shared by every session and tool on it.
 
 Each project root holds three artifacts:
 
-- `bank.jsonl` — editable working entries written by `retain` (id, content,
-  context, source, importance, timestamps, active flag). Backs `memory_edit`.
-  By default the on-disk container is the same zstd frame format the harness
+- `bank.jsonl.zstd` — editable working entries written by `retain` (id,
+  content, context, source, importance, timestamps, active flag). Backs
+  `memory_edit`. On-disk container is the same zstd frame format the harness
   session logs use: each save batch is one checksummed Zstandard frame
-  (concatenated, append-only, self-healing). Plaintext banks are read and
-  migrated transparently; set `compression: 'none'` in `LocalMemoryConfig` to
-  keep the original line-append format. The codec ships inside this package
-  (`/frame-codec` subpath, `node:zlib`-only).
+  (concatenated, append-only, self-healing). The pre-rename plaintext
+  `bank.jsonl` is still read and is migrated on the first write; set
+  `compression: 'none'` in `LocalMemoryConfig` for the original line-append
+  format. The codec ships inside this package (`/frame-codec` subpath,
+  `node:zlib`-only).
 - `learned.md` — newest-first, deduped, capped (100) lesson bullets written by
   `learn`; the same format and normalization omp keeps. Survives
   consolidation; `learn` writes are injection-neutralized and secret-redacted.
