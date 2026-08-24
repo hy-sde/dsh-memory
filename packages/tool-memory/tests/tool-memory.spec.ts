@@ -125,6 +125,22 @@ describe('memory tools', () => {
     expect(sectionTextValue).toContain('lockfile')
   })
 
+  it('mine_sessions degrades to an unavailable notice without the host service', async () => {
+    const { ctx } = await mount()
+    const result = await call(ctx, 'mine_sessions', {})
+    expect(result.isError).toBe(false)
+    expect(text(result)).toContain('unavailable')
+    expect(text(result)).toContain('sessionQuery')
+  })
+
+  it('recall still works with session-history enabled but no host service', async () => {
+    const { ctx } = await mount({ sessionRecall: true })
+    await call(ctx, 'retain', { items: [{ content: 'session-scoped note survives without sessionQuery' }] })
+    const recalled = await call(ctx, 'recall', { query: 'session-scoped note' })
+    expect(text(recalled)).toContain('Found 1 relevant memory')
+    expect(text(recalled)).not.toContain('session ')
+  })
+
   it('the prompt section stays empty for a fresh project and when disabled', async () => {
     const { ctx } = await mount({ enabled: false })
     await ctx.memory.save({ cwd: CWD }, { content: 'hidden fact' })

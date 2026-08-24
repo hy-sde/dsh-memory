@@ -1,11 +1,11 @@
 # @hy-sde-org/dsh-tool-memory
 
-**The model-facing memory surface** for DeepSeek Harness — the five tools
-`retain`, `recall`, `reflect`, `memory_edit`, and `learn` over the host
-`ctx.memory` service, plus a `memory:project` system-prompt section that
-**reloads the session's project memory at the start of every session**.
-Ported from the [@oh-my-pi](https://github.com/oh-my-pi) coding-agent memory
-surface (see `port_omp.md` item 4); storage lives in
+**The model-facing memory surface** for DeepSeek Harness — the six tools
+`retain`, `recall`, `reflect`, `memory_edit`, `learn`, and `mine_sessions`
+over the host `ctx.memory` service, plus a `memory:project` system-prompt
+section that **reloads the session's project memory at the start of every
+session**. Ported from the [@oh-my-pi](https://github.com/oh-my-pi) coding-agent
+memory surface (see `port_omp.md` item 4); storage lives in
 `@hy-sde-org/dsh-memory`.
 
 This package is **agent-plane**: it mounts as a preset row and resolves the
@@ -13,14 +13,15 @@ host `memory` service, registering no service of its own. It installs as a
 standalone plugin for stock DeepSeek Harness (`dsh-v0.1.1-rc.2` and later) —
 see `@hy-sde-org/dsh-memory` for the install recipe and the preset example.
 
-## The five tools
+## The six tools
 
 - `retain` — store one or more durable facts (user preferences, project
   decisions, architectural choices) for future sessions. Batch related facts;
   entries are self-contained, normalized, and deduplicated.
 - `recall` — relevance-ranked search over bank + lessons + summary. Returns
   ids that round-trip through `memory_edit`. Use proactively before questions
-  about past decisions or preferences.
+  about past decisions or preferences. When a host `sessionQuery` service is
+  mounted, past-session hits merge in as a `session` source tier.
 - `reflect` — synthesize an answer across many stored memories (blends,
   unlike `recall`). Grounding is memory-only; verify repository facts.
 - `memory_edit` — `update` (replace content/importance), `forget` (hard
@@ -28,6 +29,13 @@ see `@hy-sde-org/dsh-memory` for the install recipe and the preset example.
   and summary entries are read-only facts.
 - `learn` — capture one durable lesson (what/when/why) into `learned.md`;
   write-path neutralization strips prompt-injection markers and secrets.
+- `mine_sessions` — harvest reusable lessons from your own past sessions
+  (digests from compaction summaries, failures from turn/end error reasons,
+  all-completed todos), stored as `learn` entries with session provenance and
+  deduped. Needs a host `sessionQuery` service; without one it reports
+  unavailable rather than erroring — this standalone ships the bridge
+  (`session-history.ts`, `ctx.get('sessionQuery')` duck-typed) but no session
+  backend.
 
 ## Prompt injection
 

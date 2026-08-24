@@ -2,7 +2,7 @@
  * Agent-curated long-horizon memory (`ctx.memory`): a host-plane service with
  * a backend registry and a shipped local backend. The model-facing
  * retain/recall/reflect/memory_edit/learn tools are provided by
- * `@deepseek-ai/dsh-tool-memory`; this package owns the durable store.
+ * `@hy-sde-org/dsh-tool-memory`; this package owns the durable store.
  *
  * Port of omp (oh-my-pi)'s memory surface for the DeepSeek Harness — see
  * port_omp.md item 4. Only the `local` backend ships; the registry keeps the
@@ -19,6 +19,7 @@ import type { Config } from './service.ts'
 export * from './types.ts'
 export * from './service.ts'
 export * from './local.ts'
+export * from './frame-codec.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

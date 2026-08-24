@@ -15,13 +15,21 @@
  * each other's writes. No model, network, or binary dependency — this is the
  * portable subset of omp's `local` memory backend, upgraded with the full
  * retain/recall/reflect/memory_edit surface its remote backends enjoy.
+ *
+ * The working bank (`bank.jsonl`) defaults to the same on-disk container as
+ * the harness session persistence backend: each save batch is one checksummed
+ * Zstandard frame, so memory reuses the vendored frame codec, stays
+ * append-friendly and self-healing, and migrates plaintext banks transparently
+ * on first write (reads are encoding-agnostic). `learned.md` stays plaintext
+ * markdown for human/tool readability.
  * @module @hy-sde-org/dsh-memory/local
  */
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join, relative, resolve } from 'node:path'
 import { expandHomePath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { compressZstdFrame, decompressZstdFrame, scanZstdFrames } from './zstd-frame/index.ts'
 import type {
   MemoryBackend,
   MemoryContext,
@@ -62,11 +70,16 @@ export interface BankRow {
   createdAt: number
   updatedAt: number
   tags?: string[]
+  /** Session that captured this entry (cross-session provenance). */
+  sessionId?: string
   /** False when `invalidate` superseded or a future op retired the row. */
   active: boolean
   /** Id of the entry that superseded this one, when retired by `invalidate`. */
   supersededBy?: string
 }
+
+/** On-disk encoding of the working bank file. */
+export type BankCompression = 'zstd' | 'none'
 
 /** Options for {@link LocalMemoryBackend}. */
 export interface LocalMemoryConfig {
@@ -76,11 +89,19 @@ export interface LocalMemoryConfig {
   defaultImportance?: number
   /** Default result cap for one search. */
   searchLimit?: number
+  /**
+   * Working-bank encoding. `zstd` (default) stores each save batch as a
+   * checksummed Zstandard frame — the same container format the session
+   * persistence backend uses — and transparently reads and migrates plaintext
+   * banks. `none` keeps the original line-append format.
+   */
+  compression?: BankCompression
 }
 
 const DEFAULTS = {
   defaultImportance: 0.7,
   searchLimit: 10,
+  compression: 'zstd',
 } as const
 
 /** Expand host/`~`-style roots and resolve a stable absolute memory root. */
@@ -162,6 +183,16 @@ async function readMaybe(file: string): Promise<string> {
   }
 }
 
+/** Read a small file's raw bytes, or an empty buffer when absent. */
+async function readMaybeBytes(file: string): Promise<Buffer> {
+  try {
+    return await readFile(file)
+  } catch (error) {
+    if (isEnoent(error)) return Buffer.alloc(0)
+    throw error
+  }
+}
+
 /** Fresh lowercase word tokens (letters/digits, length >= 2) from text. */
 function tokenize(text: string): string[] {
   const tokens = text.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []
@@ -195,6 +226,7 @@ export class LocalMemoryBackend implements MemoryBackend {
   private readonly memoryRoot: string
   private readonly defaultImportance: number
   private readonly searchLimit: number
+  private readonly compression: BankCompression
   /** Per-file serialization chains: `file -> tail promise`. */
   private readonly chains = new Map<string, Promise<unknown>>()
 
@@ -202,6 +234,7 @@ export class LocalMemoryBackend implements MemoryBackend {
     this.memoryRoot = resolveMemoryRoot(config)
     this.defaultImportance = config.defaultImportance ?? DEFAULTS.defaultImportance
     this.searchLimit = config.searchLimit ?? DEFAULTS.searchLimit
+    this.compression = config.compression ?? DEFAULTS.compression
   }
 
   /** Absolute project root (exposed for tool presentation and tests). */
@@ -254,6 +287,7 @@ export class LocalMemoryBackend implements MemoryBackend {
       id: `m_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       content,
       ...contextText.length > 0 ? { context: contextText } : {},
+      ...input.sessionId !== undefined && input.sessionId.length > 0 ? { sessionId: input.sessionId } : {},
       source: input.source ?? 'retain',
       importance: clampImportance(input.importance ?? this.defaultImportance),
       createdAt: now,
@@ -262,7 +296,7 @@ export class LocalMemoryBackend implements MemoryBackend {
     }
     return this.withChain(this.bankFile(context.cwd), async () => {
       await mkdir(this.projectRoot(context.cwd), { recursive: true })
-      await appendLines(this.bankFile(context.cwd), [JSON.stringify(row)])
+      await appendBankEntry(this.bankFile(context.cwd), JSON.stringify(row), this.compression, this.defaultImportance)
       return { id: row.id, stored: 1, message: 'Stored in project memory.' }
     })
   }
@@ -309,6 +343,7 @@ export class LocalMemoryBackend implements MemoryBackend {
         timestamp: new Date(row.updatedAt).toISOString(),
         importance: row.importance,
         score: normalizeScore(raw, row.importance),
+        ...row.sessionId !== undefined ? { sessionId: row.sessionId } : {},
       })
     }
     for (const line of lessons) {
@@ -384,7 +419,7 @@ export class LocalMemoryBackend implements MemoryBackend {
         if (importance !== undefined) target.importance = clampImportance(importance)
         target.updatedAt = Date.now()
       }
-      await writeBank(this.bankFile(context.cwd), rows)
+      await writeBank(this.bankFile(context.cwd), rows, this.compression)
       return { status: op === 'update' ? 'updated' : op === 'forget' ? 'forgotten' : 'invalidated' }
     })
   }
@@ -419,7 +454,19 @@ export class LocalMemoryBackend implements MemoryBackend {
   }
 
   private async readBank(root: string): Promise<BankRow[]> {
-    const text = await readMaybe(join(root, BANK_FILE))
+    const bytes = await readMaybeBytes(join(root, BANK_FILE))
+    let text: string
+    if (isZstdData(bytes)) {
+      try {
+        text = Buffer.from(await decodeBankFrames(bytes)).toString('utf8')
+      } catch {
+        // A structurally corrupt frame stream still yields earlier knowledge
+        // when read as text; parseBankText skips malformed lines (self-healing).
+        text = Buffer.from(bytes).toString('utf8')
+      }
+    } else {
+      text = Buffer.from(bytes).toString('utf8')
+    }
     return parseBankText(text, this.defaultImportance)
   }
 
@@ -490,6 +537,79 @@ async function appendLines(file: string, lines: string[]): Promise<void> {
   await writeFile(file, `${lines.join('\n')}\n`, { flag: 'a' })
 }
 
+/** Whether `bytes` begin with a Zstandard frame magic (28 b5 2f fd). */
+export function isZstdData(bytes: Uint8Array): boolean {
+  return bytes.byteLength >= 4
+    && bytes[0] === 0x28 && bytes[1] === 0xb5 && bytes[2] === 0x2f && bytes[3] === 0xfd
+}
+
+/** Decode all complete checksummed frames in `bytes` (session-style container). */
+async function decodeBankFrames(bytes: Uint8Array): Promise<Uint8Array> {
+  const buffer = Buffer.from(bytes)
+  const { frames } = scanZstdFrames(buffer)
+  const decoded: Uint8Array[] = []
+  for (const frame of frames) {
+    decoded.push(await decompressZstdFrame(buffer.subarray(frame.start, frame.end)))
+  }
+  return Buffer.concat(decoded)
+}
+
+/** Encode JSONL lines as concatenated checksummed zstd frames (one per line). */
+async function encodeBankFrames(lines: readonly string[]): Promise<Uint8Array> {
+  const frames: Uint8Array[] = []
+  for (const line of lines) {
+    frames.push(await compressZstdFrame(`${line}\n`))
+  }
+  return Buffer.concat(frames)
+}
+
+/**
+ * Append one bank line under the configured bank encoding. For `zstd`, an
+ * already-framed file gets exactly one appended frame (no rewrite); a
+ * plaintext or absent file is migrated to frames first so every future append
+ * stays frame-only. For `none`, preserves the original line-append format.
+ */
+async function appendBankEntry(
+  file: string,
+  line: string,
+  compression: BankCompression,
+  fallbackImportance: number,
+): Promise<void> {
+  if (compression === 'none') {
+    await appendLines(file, [line])
+    return
+  }
+  const existing = await readMaybeBytes(file)
+  if (existing.length > 0 && isZstdData(existing)) {
+    await appendFile(file, Buffer.from(await compressZstdFrame(`${line}\n`)))
+    return
+  }
+  const plaintext = existing.length === 0 ? '' : existing.toString('utf8')
+  // empty file → first frame; plaintext → migrate rows to frames first.
+  const rows = plaintext.length > 0 ? parseBankText(plaintext, fallbackImportance) : []
+  const head = rows.map(row => JSON.stringify(row))
+  const payload = Buffer.from(await encodeBankFrames([...head, line]))
+  await writeFile(file, payload)
+}
+
+/**
+ * Rewrite the bank file from parsed rows under one encoding (used by `edit`).
+ * `zstd` writes concatenated frames; `none` writes plain JSONL lines.
+ */
+async function writeBank(file: string, rows: BankRow[], compression: BankCompression): Promise<void> {
+  await mkdir(resolve(file, '..'), { recursive: true })
+  const lines = rows.map(row => JSON.stringify(row))
+  if (lines.length === 0) {
+    await writeFile(file, '', 'utf8')
+    return
+  }
+  if (compression === 'zstd') {
+    await writeFile(file, Buffer.from(await encodeBankFrames(lines)))
+    return
+  }
+  await writeFile(file, `${lines.join('\n')}\n`, 'utf8')
+}
+
 /**
  * Append one bullet to `learned.md` (newest-first, deduped, capped at
  * {@link MAX_LEARNED_LESSONS}). Non-bullet content (headings, prose) keeps its
@@ -514,13 +634,6 @@ async function appendLearnedLine(file: string, line: string): Promise<void> {
     }
   }
   await writeFile(file, `${out.join('\n')}\n`)
-}
-
-/** Rewrite the bank file from parsed rows (used by edit). */
-async function writeBank(file: string, rows: BankRow[]): Promise<void> {
-  await mkdir(resolve(file, '..'), { recursive: true })
-  const lines = rows.map(row => JSON.stringify(row))
-  await writeFile(file, lines.length > 0 ? `${lines.join('\n')}\n` : '', 'utf8')
 }
 
 /** Largest number of working-bank entries the injected block lists (newest first). */
@@ -554,6 +667,9 @@ export function parseBankText(text: string, fallbackImportance = 0.7): BankRow[]
         updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
         ...parsed.tags !== undefined && Array.isArray(parsed.tags) ? { tags: parsed.tags } : {},
         active: parsed.active !== false,
+        ...parsed.sessionId !== undefined && typeof parsed.sessionId === 'string'
+          ? { sessionId: parsed.sessionId }
+          : {},
         ...parsed.supersededBy !== undefined && typeof parsed.supersededBy === 'string'
           ? { supersededBy: parsed.supersededBy }
           : {},

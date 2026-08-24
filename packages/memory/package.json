@@ -22,6 +22,10 @@
       "types": "./dist/invariant.d.ts",
       "default": "./dist/invariant.js"
     },
+    "./frame-codec": {
+      "types": "./dist/frame-codec.d.ts",
+      "default": "./dist/frame-codec.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
