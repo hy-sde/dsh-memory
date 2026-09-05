@@ -1,8 +1,8 @@
 /**
  * Model-facing long-horizon memory tools over the host `ctx.memory` service:
- * `retain`, `recall`, `reflect`, `memory_edit`, `learn`, and `mine_sessions`,
- * plus a `memory:project` system-prompt section that reloads the session's
- * project memory at the start of every session.
+ * `retain`, `recall`, `reflect`, `memory_edit`, and `learn`, plus a
+ * `memory:project` system-prompt section that reloads the session's project
+ * memory at the start of every session.
  *
  * Port of omp (oh-my-pi)'s memory surface for the DeepSeek Harness — see
  * port_omp.md item 4. Agent-plane: this package mounts as a preset row and

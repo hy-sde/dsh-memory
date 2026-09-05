@@ -13,8 +13,8 @@ ported onto the harness `ctx.memory` service contract as a **standalone
 plugin with zero upstream harness changes**: the service row ships as a
 `cordis.patch.yml` bundle, the tool row ships as a ready-to-copy agent
 preset, and every `@deepseek-ai` dependency resolves from the npm registry at
-the `0.1.2-alpha.1` baseline — so it installs on official DeepSeek Harness
-releases (`dsh-v0.1.2-alpha.1` and later) exactly as it runs in the hy-sde fork.
+the `0.1.2-rc.1` baseline — so it installs on official DeepSeek Harness
+releases (`dsh-v0.1.2-rc.1` and later) exactly as it runs in the hy-sde fork.
 
 ## Install
 
@@ -83,7 +83,7 @@ preset rows, resolving the host service across the plane boundary.
 ```bash
 pnpm install
 pnpm -r check      # strict typecheck of both packages
-pnpm -r test       # 28 memory tests + tool tests
+pnpm -r test       # 42 tests (29 memory + 13 tool)
 pnpm -r build      # tsc -> dist
 bash scripts/release-public.sh --check      # pre-publish validation
 bash scripts/release-public.sh --publish    # publish memory then tool-memory

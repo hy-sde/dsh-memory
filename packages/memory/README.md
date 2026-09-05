@@ -14,7 +14,7 @@ this bank answers "what did we decide / prefer / learn here?" across sessions.
 This is a **standalone plugin build**: the harness integration (the host-plane
 `memory` row) ships in `cordis.patch.yml`, and the agent-plane tools live in
 `@hy-sde-org/dsh-tool-memory`. Nothing in the upstream DeepSeek Harness
-(`dsh-v0.1.2-alpha.1` and later) needs to change.
+(`dsh-v0.1.2-rc.1` and later) needs to change.
 
 Only the **`local` backend** ships. The registry keeps the seam open for
 Hindsight/Mnemopi-style providers later — a future provider registers one
@@ -30,7 +30,7 @@ pnpm install --global @deepseek-ai/dsh
 
 Both packages are published on the npm registry under the `hy-sde-org`
 organization (`@hy-sde-org/dsh-memory` and `@hy-sde-org/dsh-tool-memory`,
-version `0.1.2-alpha.1`). Add the service, then mount the tools via a preset:
+version `0.1.2-rc.1`). Add the service, then mount the tools via a preset:
 
 ```bash
 # one command; the tool package comes in as a transitive dependency

@@ -1,7 +1,7 @@
 /**
  * Model-facing long-horizon memory tools: `retain`, `recall`, `reflect`,
- * `memory_edit`, `learn`, and `mine_sessions` over the host `ctx.memory`
- * service. Pure tool surface — all storage lives in `@hy-sde-org/dsh-memory`.
+ * `memory_edit`, and `learn` over the host `ctx.memory` service. Pure tool
+ * surface — all storage lives in `@hy-sde-org/dsh-memory`.
  * @module @hy-sde-org/dsh-tool-memory/tools
  */
 
@@ -181,9 +181,9 @@ export function applyRecallTool(ctx: Context, history: SessionHistoryConfig = DE
                 timestamp: { type: 'string' },
                 score: { type: 'number' },
                 readonly: { type: 'boolean' },
+                importance: { type: 'number' },
                 sessionId: { type: 'string' },
                 seq: { type: 'integer' },
-                importance: { type: 'number' },
               },
             },
           },
@@ -193,8 +193,8 @@ export function applyRecallTool(ctx: Context, history: SessionHistoryConfig = DE
     },
     isConcurrencySafe: () => true,
     async execute(args: RecallArgs, exec) {
-      const limit = Math.max(1, Math.min(50, args.limit ?? 10))
-      const result = await memorySearchWithHistory(ctx, exec, args.query, { limit, history })
+      const limit = args.limit === undefined ? undefined : Math.max(1, Math.min(50, args.limit))
+      const result = await memorySearchWithHistory(ctx, exec, args.query, { limit: limit ?? 10, history })
       return { query: result.query, count: result.count, items: result.items, message: formatRecall(args.query, result) }
     },
     presentCall: (args: RecallArgs): GenericCallView | undefined => ({ card: 'generic', title: 'Recall', rawInput: args.query }),

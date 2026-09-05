@@ -10,7 +10,7 @@ memory surface (see `port_omp.md` item 4); storage lives in
 
 This package is **agent-plane**: it mounts as a preset row and resolves the
 host `memory` service, registering no service of its own. It installs as a
-standalone plugin for stock DeepSeek Harness (`dsh-v0.1.2-alpha.1` and later) —
+standalone plugin for stock DeepSeek Harness (`dsh-v0.1.2-rc.1` and later) —
 see `@hy-sde-org/dsh-memory` for the install recipe and the preset example.
 
 ## The six tools

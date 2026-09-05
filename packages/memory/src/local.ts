@@ -10,19 +10,19 @@
  * - `memory_summary.md` — optional consolidated long-term summary (hand or
  *   tool maintained) that recall and prompt injection surface.
  *
- * Everything is plain files plus an in-process write-chain so concurrent
- * read-modify-write calls (sibling subagents, batched tool calls) cannot drop
- * each other's writes. No model, network, or binary dependency — this is the
- * portable subset of omp's `local` memory backend, upgraded with the full
- * retain/recall/reflect/memory_edit surface its remote backends enjoy.
- *
  * The working bank (`bank.jsonl.zstd`) uses the same on-disk container as
- * the harness session persistence backend: each save batch is one checksummed
+ * the session persistence backend: each save batch is one checksummed
  * Zstandard frame, so memory reuses the vendored frame codec, stays
  * append-friendly and self-healing, and migrates the pre-rename plaintext
  * `bank.jsonl` transparently on first write (reads are encoding-agnostic;
  * the filename advertises the container). `learned.md` stays plaintext
  * markdown for human/tool readability.
+ *
+ * Everything is plain files plus an in-process write-chain so concurrent
+ * read-modify-write calls (sibling subagents, batched tool calls) cannot drop
+ * each other's writes. No model, network, or binary dependency — this is the
+ * portable subset of omp's `local` memory backend, upgraded with the full
+ * retain/recall/reflect/memory_edit surface its remote backends enjoy.
  * @module @hy-sde-org/dsh-memory/local
  */
 
@@ -73,12 +73,12 @@ export interface BankRow {
   createdAt: number
   updatedAt: number
   tags?: string[]
-  /** Session that captured this entry (cross-session provenance). */
-  sessionId?: string
   /** False when `invalidate` superseded or a future op retired the row. */
   active: boolean
   /** Id of the entry that superseded this one, when retired by `invalidate`. */
   supersededBy?: string
+  /** Session that captured this entry (cross-session provenance). */
+  sessionId?: string
 }
 
 /** On-disk encoding of the working bank file. */
@@ -290,16 +290,21 @@ export class LocalMemoryBackend implements MemoryBackend {
       id: `m_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       content,
       ...contextText.length > 0 ? { context: contextText } : {},
-      ...input.sessionId !== undefined && input.sessionId.length > 0 ? { sessionId: input.sessionId } : {},
       source: input.source ?? 'retain',
       importance: clampImportance(input.importance ?? this.defaultImportance),
       createdAt: now,
       updatedAt: now,
       active: true,
+      ...input.sessionId !== undefined && input.sessionId.length > 0 ? { sessionId: input.sessionId } : {},
     }
     return this.withChain(this.bankFile(context.cwd), async () => {
       await mkdir(this.projectRoot(context.cwd), { recursive: true })
-      await appendBankEntry(this.bankFile(context.cwd), JSON.stringify(row), this.compression, this.defaultImportance)
+      await appendBankEntry(
+        this.bankFile(context.cwd),
+        JSON.stringify(row),
+        this.compression,
+        this.defaultImportance,
+      )
       return { id: row.id, stored: 1, message: 'Stored in project memory.' }
     })
   }
@@ -689,11 +694,11 @@ export function parseBankText(text: string, fallbackImportance = 0.7): BankRow[]
         updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now(),
         ...parsed.tags !== undefined && Array.isArray(parsed.tags) ? { tags: parsed.tags } : {},
         active: parsed.active !== false,
-        ...parsed.sessionId !== undefined && typeof parsed.sessionId === 'string'
-          ? { sessionId: parsed.sessionId }
-          : {},
         ...parsed.supersededBy !== undefined && typeof parsed.supersededBy === 'string'
           ? { supersededBy: parsed.supersededBy }
+          : {},
+        ...parsed.sessionId !== undefined && typeof parsed.sessionId === 'string'
+          ? { sessionId: parsed.sessionId }
           : {},
       })
     } catch {

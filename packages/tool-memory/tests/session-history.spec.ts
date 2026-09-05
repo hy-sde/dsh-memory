@@ -1,10 +1,9 @@
 /**
  * Provenance mention helpers in the session-history bridge: `encodeSessionUri`
- * must stay format-compatible with the fork's session-reference canonical
- * `dsh-session:` scheme (base64url of the JSON-encoded id), and
- * `formatSessionMention` must render a mention whose URI round-trips back to
- * the id — so recall output carries a click-through that a session-reference
- * mount can resolve.
+ * must stay format-compatible with session-reference's canonical `dsh-session:`
+ * scheme (base64url of the JSON-encoded id), and `formatSessionMention` must
+ * render a mention whose URI round-trips back to the id — so recall output
+ * carries a click-through that a session-reference mount can resolve.
  */
 
 import { describe, expect, it } from 'vitest'

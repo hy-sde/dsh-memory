@@ -92,7 +92,7 @@ export function sessionLabel(sessionId: string): string {
 }
 
 /**
- * Canonical session URI, format-compatible with the fork's session-reference
+ * Canonical session URI, format-compatible with session-reference's
  * `dsh-session:` scheme (base64url of the JSON-encoded id). Duplicated here,
  * dependency-free, so recall output can carry a mention that a session-reference
  * mount (when present) resolves to the full conversation.
