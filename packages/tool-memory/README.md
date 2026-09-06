@@ -5,7 +5,7 @@
 over the host `ctx.memory` service, plus a `memory:project` system-prompt
 section that **reloads the session's project memory at the start of every
 session**. Ported from the [@oh-my-pi](https://github.com/oh-my-pi) coding-agent
-memory surface (see `port_omp.md` item 4); storage lives in
+memory surface; storage lives in
 `@hy-sde-org/dsh-memory`.
 
 This package is **agent-plane**: it mounts as a preset row and resolves the

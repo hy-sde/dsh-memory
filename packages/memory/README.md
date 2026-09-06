@@ -2,7 +2,7 @@
 
 **Agent-curated long-horizon memory** for DeepSeek Harness — the `ctx.memory`
 service and its provider registry, ported from the [@oh-my-pi](https://github.com/oh-my-pi)
-coding-agent memory surface (see `port_omp.md` item 4 — the port lives in the
+coding-agent memory surface (the port lives in the
 [hy-sde fork](https://github.com/hy-sde/deepseek-harness)). Memory is durable,
 **project-scoped** data the agent curates itself with the
 `retain`/`recall`/`reflect`/`memory_edit`/`learn` tools (shipped by

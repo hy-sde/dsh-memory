@@ -5,7 +5,7 @@
  * memory at the start of every session.
  *
  * Port of omp (oh-my-pi)'s memory surface for the DeepSeek Harness — see
- * port_omp.md item 4. Agent-plane: this package mounts as a preset row and
+ * LICENSE. Agent-plane: this package mounts as a preset row and
  * resolves the host `memory` service; it registers no service of its own.
  * @module @hy-sde-org/dsh-tool-memory
  */

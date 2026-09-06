@@ -2,11 +2,11 @@ MIT License
 
 Copyright (c) 2026 hy-sde
 
-This repository is a port of the oh-my-pi memory surface (retain / recall /
-reflect / memory_edit / learn and the durable project-scoped local memory
-backend) onto the DeepSeek Harness `ctx.memory` service contract — see
-port_omp.md item 4 in the hy-sde fork. The ported portions are distributed
-under the same MIT license with their original copyright held by their
+This repository is a port of the oh-my-pi (omp) agent-memory surface (retain /
+recall / reflect / memory_edit / learn and the durable project-scoped local
+memory backend) onto the DeepSeek Harness `ctx.memory` service contract. The
+ported portions are distributed under the same MIT license with their
+original copyright held by their
 respective authors:
 
   Copyright (c) 2025 Mario Zechner

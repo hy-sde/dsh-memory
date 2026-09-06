@@ -8,8 +8,8 @@ Harness CLI:
 | `@hy-sde-org/dsh-memory` | the plugin: host-plane `ctx.memory` service + shipped `local` backend (bundle row + preset example) | yes |
 | `@hy-sde-org/dsh-tool-memory` | the model-facing tools (`retain` / `recall` / `reflect` / `memory_edit` / `learn`) + first-turn prompt injection | yes |
 
-This is the oh-my-pi agent-memory surface (portal `port_omp.md` item 4)
-ported onto the harness `ctx.memory` service contract as a **standalone
+This is the oh-my-pi agent-memory surface, ported onto the harness
+`ctx.memory` service contract as a **standalone
 plugin with zero upstream harness changes**: the service row ships as a
 `cordis.patch.yml` bundle, the tool row ships as a ready-to-copy agent
 preset, and every `@deepseek-ai` dependency resolves from the npm registry at

@@ -5,7 +5,7 @@
  * `@hy-sde-org/dsh-tool-memory`; this package owns the durable store.
  *
  * Port of omp (oh-my-pi)'s memory surface for the DeepSeek Harness — see
- * port_omp.md item 4. Only the `local` backend ships; the registry keeps the
+ * LICENSE. Only the `local` backend ships; the registry keeps the
  * seam open for Hindsight/Mnemopi-style providers later.
  * @module @hy-sde-org/dsh-memory
  */
