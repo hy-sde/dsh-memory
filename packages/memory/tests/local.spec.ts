@@ -239,3 +239,76 @@ describe('status reporting', () => {
     expect(status.searchable).toBe(true)
   })
 })
+
+describe('addressable entry reads (readEntry/listEntries)', () => {
+  it('readEntry round-trips a saved bank entry with its metadata', async () => {
+    const root = await tempRoot()
+    const backend = backendFor(root)
+    const { id } = await backend.save({ cwd: CWD }, { content: 'roundtrip fact', context: 'ctx', source: 'retain', importance: 0.4 })
+    const idValue = id ?? ''
+    const entry = await backend.readEntry({ cwd: CWD }, idValue)
+    expect(entry).toBeDefined()
+    expect(entry?.id).toBe(idValue)
+    expect(entry?.content).toBe('roundtrip fact')
+    expect(entry?.context).toBe('ctx')
+    expect(entry?.source).toBe('retain')
+    expect(entry?.importance).toBe(0.4)
+    expect(entry?.timestamp).toBeDefined()
+    expect(entry?.readonly).toBeUndefined()
+  })
+
+  it('readEntry returns undefined for unknown ids and for retired entries', async () => {
+    const root = await tempRoot()
+    const backend = backendFor(root)
+    expect(await backend.readEntry({ cwd: CWD }, 'm_nope')).toBeUndefined()
+    const { id } = await backend.save({ cwd: CWD }, { content: 'retire me' })
+    const idValue = id ?? ''
+    await backend.edit({ cwd: CWD }, 'invalidate', { id: idValue })
+    expect(await backend.readEntry({ cwd: CWD }, idValue)).toBeUndefined()
+  })
+
+  it('readEntry addresses lessons and the consolidated summary by id', async () => {
+    const root = await tempRoot()
+    const backend = backendFor(root)
+    await backend.learn({ cwd: CWD }, { content: 'addressable lesson' })
+    // Use the id `recall` surfaces (stripped-bullet hash), which is the one
+    // tool-memory shows and memory://<id> must accept.
+    const found = await backend.search({ cwd: CWD }, 'addressable lesson')
+    const lessonId = found.items.find(item => item.source === 'learn')?.id ?? ''
+    const lesson = await backend.readEntry({ cwd: CWD }, lessonId)
+    expect(lesson).toBeDefined()
+    expect(lesson?.content).toContain('addressable lesson')
+    expect(lesson?.source).toBe('learn')
+    expect(lesson?.readonly).toBe(true)
+    // The summary file is written by consolidation, not by a memory op.
+    const fs = await import('node:fs/promises')
+    await fs.mkdir(projectRootOf(root, CWD), { recursive: true })
+    await fs.writeFile(join(projectRootOf(root, CWD), SUMMARY_FILE), '# Summary\n\n- decisions: use vitest')
+    const summary = await backend.readEntry({ cwd: CWD }, 'summary_0')
+    expect(summary?.content).toContain('decisions: use vitest')
+    expect(summary?.source).toBe('memory_summary.md')
+    expect(summary?.readonly).toBe(true)
+  })
+
+  it('listEntries returns saved ids newest first plus lessons and summary', async () => {
+    const root = await tempRoot()
+    const backend = backendFor(root)
+    const first = await backend.save({ cwd: CWD }, { content: 'first entry' })
+    await backend.learn({ cwd: CWD }, { content: 'a listed lesson' })
+    const fs = await import('node:fs/promises')
+    await fs.mkdir(projectRootOf(root, CWD), { recursive: true })
+    await fs.writeFile(join(projectRootOf(root, CWD), SUMMARY_FILE), '# Summary\n\n- decisions: use vitest')
+    const second = await backend.save({ cwd: CWD }, { content: 'second entry' })
+
+    const entries = await backend.listEntries({ cwd: CWD }, 10)
+    const ids = entries.map(entry => entry.id)
+    expect(ids[0]).toBe(second.id) // newest bank entry first
+    expect(ids).toContain(first.id ?? '')
+    expect(ids).toContain('summary_0')
+    expect(ids.some(id => id.startsWith('lesson_'))).toBe(true)
+    // Unknown banks never appear; a cap bounds the result.
+    expect(entries.length).toBe(4)
+    const capped = await backend.listEntries({ cwd: CWD }, 2)
+    expect(capped).toHaveLength(2)
+  })
+})

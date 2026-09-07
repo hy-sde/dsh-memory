@@ -65,11 +65,13 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-invariants": "^0.1.2-rc.1"
+    "@deepseek-ai/dsh-invariants": "^0.1.2-rc.1",
+    "@hy-sde-org/dsh-internal-urls": "^0.1.2-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-invariants": "^0.1.2-rc.1",
+    "@hy-sde-org/dsh-internal-urls": "^0.1.2-rc.1",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

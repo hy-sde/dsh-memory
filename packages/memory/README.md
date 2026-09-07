@@ -102,6 +102,44 @@ the shipped one, `LocalMemoryBackend`, is pure-node (`node:fs`) with an
 in-process per-file write chain so concurrent saves from sibling sessions can
 never drop each other's writes.
 
+## `memory://` internal URLs
+
+When the host composition mounts `@hy-sde-org/dsh-internal-urls` (the shared
+registry behind the read/grep tools), this plugin registers a `memory://`
+scheme in `ctx.internalUrls` — once per process, via `ctx.inject`, and it is a
+graceful no-op in compositions without the registry. Every resolved resource
+is `immutable: true`: agents never rewrite durable memory through a
+file-shaped URL; `memory_edit` is the mutation surface.
+
+Two URL forms:
+
+- `memory://root` — the project's consolidated memory overview (summary +
+  learned lessons + working bank, the same block prompt injection uses).
+  An empty project reads a "Project memory is empty" pointer instead.
+- `memory://<id>` — one stored entry in full, with a metadata header
+  (`id`, `source`, `importance`, `timestamp`, `readonly`). Ids are the same
+  ones `recall`/`reflect` surface: bank rows by their `m_*` id, lessons as
+  `lesson_<hash>` (read-only), and the consolidated summary as `summary_0`
+  (read-only). Reads are scoped to the calling session's project (`cwd`).
+
+Corrective errors, following the upstream oh-my-pi
+(`coding-agent/src/internal-urls/memory-protocol.ts`) HINDSIGHT_UNADDRESSABLE
+pattern:
+
+- **not addressable** — the selected backend has no `readEntry` (a
+  non-addressable store): "The `…` memory backend is not addressable via
+  memory://\<id\>", pointing back at `recall`/`reflect`.
+- **not found** — the id does not exist in this project (or was retired):
+  "Memory `…` does not exist in this project", pointing at `recall`/`memory_edit`.
+- a missing namespace, a missing cwd, an unregistered backend, and paths under
+  `root`/an id all get their own corrective messages.
+
+Completions: `complete()` returns `root` plus every addressable entry id
+(`listEntries`, newest first, capped at 50) with a one-line content preview;
+a backend that only implements `readEntry` falls back to a `<id>` placeholder,
+and one with neither completes only `root`. The `memory://` scheme never
+takes a path (backend-shaped, not file-shaped).
+
 ## Config (the `memory` row)
 
 | Key | Default | Meaning |
