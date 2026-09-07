@@ -1,6 +1,6 @@
 {
   "name": "@hy-sde-org/dsh-tool-memory",
-  "version": "0.1.2-rc.1",
+  "version": "0.1.2-rc.2",
   "description": "Model-facing long-horizon memory tools (retain, recall, reflect, memory_edit, learn) over the ctx.memory service, plus first-turn project-memory prompt injection — a standalone plugin for DeepSeek Harness with no upstream harness changes required.",
   "type": "module",
   "main": "./dist/index.js",
